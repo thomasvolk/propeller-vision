@@ -1,6 +1,7 @@
 import asyncio
 from pathlib import Path
 
+import pytest
 from textual.widgets import Static
 
 from propeller_vision.app import PropellerVisionApp
@@ -9,6 +10,17 @@ from propeller_vision.poller import Poller
 from propeller_vision.protocol import EngineClient
 from tests.conftest import wait_until
 from tests.fake_engine import FakeEngine
+
+
+def test_plasma_view_requires_a_project_poller() -> None:
+    poller = Poller(
+        client_factory=lambda: EngineClient("/tmp/unused.sock"),
+        position_interval=0.1,
+        status_interval=1.0,
+    )
+
+    with pytest.raises(ValueError):
+        PropellerVisionApp(poller, view="plasma", project_poller=None)
 
 
 async def test_dashboard_renders_live_position_and_status_from_the_engine(fake_engine: FakeEngine) -> None:

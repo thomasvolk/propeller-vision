@@ -33,9 +33,15 @@ def test_view_defaults_to_dashboard() -> None:
     assert args.view == "dashboard"
 
 
+def test_view_accepts_plasma() -> None:
+    args = parse_args(["--view", "plasma"])
+
+    assert args.view == "plasma"
+
+
 def test_view_rejects_unknown_value() -> None:
     with pytest.raises(SystemExit):
-        parse_args(["--view", "plasma"])
+        parse_args(["--view", "not-a-real-view"])
 
 
 def test_position_interval_defaults_to_100ms() -> None:

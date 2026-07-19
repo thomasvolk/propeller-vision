@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Sequence
 
 from propeller_vision.app import PropellerVisionApp
+from propeller_vision.plasma import ProjectPoller
 from propeller_vision.poller import Poller
 from propeller_vision.protocol import EngineClient
 
@@ -29,7 +30,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--view",
-        choices=["dashboard"],
+        choices=["dashboard", "plasma"],
         default="dashboard",
         help="Which View to render (default: dashboard)",
     )
@@ -90,5 +91,11 @@ def main() -> None:
         position_interval=args.position_interval,
         status_interval=args.status_interval,
     )
-    app = PropellerVisionApp(poller)
+    project_poller = None
+    if args.view == "plasma":
+        project_poller = ProjectPoller(
+            client_factory=lambda: EngineClient(args.socket),
+            interval=args.status_interval,
+        )
+    app = PropellerVisionApp(poller, view=args.view, project_poller=project_poller)
     app.run()

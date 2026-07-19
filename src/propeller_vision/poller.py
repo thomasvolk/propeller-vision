@@ -15,11 +15,35 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Callable
+from typing import Awaitable, Callable, TypeVar
 
 from propeller_vision.protocol import EngineClient, EngineUnavailable, JsonDict
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
+
+
+async def run_resilient_poll(
+    fetch: Callable[[], Awaitable[T]],
+    interval: float,
+    on_success: Callable[[T], None],
+    on_failure: Callable[[EngineUnavailable], None],
+) -> None:
+    """Shared retry-forever poll loop: no backoff, keeps calling `fetch` at
+    `interval` regardless of success/failure. Used by both this module's
+    Poller and Plasma's own ProjectPoller (ADR-0005) so the ticket-02
+    resilience contract -- clear state and log on failure, retry at the same
+    interval -- has one implementation instead of a copy per poller.
+    """
+    while True:
+        try:
+            result = await fetch()
+        except EngineUnavailable as exc:
+            on_failure(exc)
+        else:
+            on_success(result)
+        await asyncio.sleep(interval)
 
 
 class Poller:
@@ -58,26 +82,34 @@ class Poller:
 
     async def _poll_position(self) -> None:
         client = self._client_factory()
-        while True:
-            try:
-                self.position = await client.get_position()
-                self.connected = True
-            except EngineUnavailable as exc:
-                logger.warning("get_position poll failed: %s", exc)
-                self.position = None
-                self.connected = False
-            await asyncio.sleep(self.position_interval)
+
+        def on_success(position: JsonDict) -> None:
+            self.position = position
+            self.connected = True
+
+        def on_failure(exc: EngineUnavailable) -> None:
+            logger.warning("get_position poll failed: %s", exc)
+            self.position = None
+            self.connected = False
+
+        await run_resilient_poll(client.get_position, self.position_interval, on_success, on_failure)
 
     async def _poll_status_and_project(self) -> None:
         client = self._client_factory()
-        while True:
-            try:
-                self.status = await client.status()
-                self.project = await client.project()
-                self.connected = True
-            except EngineUnavailable as exc:
-                logger.warning("status/project poll failed: %s", exc)
-                self.status = None
-                self.project = None
-                self.connected = False
-            await asyncio.sleep(self.status_interval)
+
+        async def fetch() -> tuple[JsonDict, JsonDict]:
+            status = await client.status()
+            project = await client.project()
+            return status, project
+
+        def on_success(result: tuple[JsonDict, JsonDict]) -> None:
+            self.status, self.project = result
+            self.connected = True
+
+        def on_failure(exc: EngineUnavailable) -> None:
+            logger.warning("status/project poll failed: %s", exc)
+            self.status = None
+            self.project = None
+            self.connected = False
+
+        await run_resilient_poll(fetch, self.status_interval, on_success, on_failure)

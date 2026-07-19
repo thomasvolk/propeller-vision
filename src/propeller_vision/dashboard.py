@@ -11,10 +11,13 @@ from propeller_vision.protocol import JsonDict
 
 PLAYHEAD_WIDTH = 40
 
+# Shared across Views: what to show while the Engine is unreachable.
+WAITING_FOR_ENGINE_MESSAGE = "Waiting for engine..."
+
 
 def format_playhead(position: JsonDict | None) -> str:
     if position is None:
-        return "Waiting for engine..."
+        return WAITING_FOR_ENGINE_MESSAGE
     tick = position.get("tick")
     duration = position.get("loop_duration")
     if tick is None or not duration:
@@ -26,7 +29,7 @@ def format_playhead(position: JsonDict | None) -> str:
 
 def format_status_panel(status: JsonDict | None, project: JsonDict | None) -> str:
     if status is None:
-        return "Waiting for engine..."
+        return WAITING_FOR_ENGINE_MESSAGE
     lines = [
         f"Mode: {status.get('mode', '?')}",
         f"BPM: {status.get('bpm', '?')}",
