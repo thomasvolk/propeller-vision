@@ -14,9 +14,12 @@ sets `connected` back to True.
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Callable
 
 from propeller_vision.protocol import EngineClient, EngineUnavailable, JsonDict
+
+logger = logging.getLogger(__name__)
 
 
 class Poller:
@@ -59,7 +62,8 @@ class Poller:
             try:
                 self.position = await client.get_position()
                 self.connected = True
-            except EngineUnavailable:
+            except EngineUnavailable as exc:
+                logger.warning("get_position poll failed: %s", exc)
                 self.position = None
                 self.connected = False
             await asyncio.sleep(self.position_interval)
@@ -71,7 +75,8 @@ class Poller:
                 self.status = await client.status()
                 self.project = await client.project()
                 self.connected = True
-            except EngineUnavailable:
+            except EngineUnavailable as exc:
+                logger.warning("status/project poll failed: %s", exc)
                 self.status = None
                 self.project = None
                 self.connected = False

@@ -60,3 +60,15 @@ def test_status_interval_is_overridable() -> None:
     args = parse_args(["--status-interval", "2.5"])
 
     assert args.status_interval == pytest.approx(2.5)
+
+
+def test_debug_defaults_to_false() -> None:
+    args = parse_args([])
+
+    assert args.debug is False
+
+
+def test_debug_flag_enables_debug() -> None:
+    args = parse_args(["--debug"])
+
+    assert args.debug is True
