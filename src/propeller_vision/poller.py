@@ -4,6 +4,11 @@ Polls the Engine's get_position on one timer and status/project on another,
 independent timer, exposing the latest known values. Knows nothing about
 Tracks/notes or which View (if any) is consuming its state -- that split is
 deliberate: see ADR-0005.
+
+If a poll fails (Engine unreachable), the corresponding data is cleared to
+None and `connected` is set False; polling keeps retrying at the same
+interval with no backoff. A later successful poll repopulates the data and
+sets `connected` back to True.
 """
 
 from __future__ import annotations
@@ -11,7 +16,7 @@ from __future__ import annotations
 import asyncio
 from typing import Callable
 
-from propeller_vision.protocol import EngineClient, JsonDict
+from propeller_vision.protocol import EngineClient, EngineUnavailable, JsonDict
 
 
 class Poller:
@@ -28,6 +33,7 @@ class Poller:
         self.position: JsonDict | None = None
         self.status: JsonDict | None = None
         self.project: JsonDict | None = None
+        self.connected = False
 
         self._tasks: list[asyncio.Task[None]] = []
 
@@ -52,8 +58,10 @@ class Poller:
         while True:
             try:
                 self.position = await client.get_position()
-            except OSError:
-                pass
+                self.connected = True
+            except EngineUnavailable:
+                self.position = None
+                self.connected = False
             await asyncio.sleep(self.position_interval)
 
     async def _poll_status_and_project(self) -> None:
@@ -62,6 +70,9 @@ class Poller:
             try:
                 self.status = await client.status()
                 self.project = await client.project()
-            except OSError:
-                pass
+                self.connected = True
+            except EngineUnavailable:
+                self.status = None
+                self.project = None
+                self.connected = False
             await asyncio.sleep(self.status_interval)
