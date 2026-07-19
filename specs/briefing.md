@@ -9,3 +9,5 @@ The following commands are useful:
 * `{"type": "get_position"}` - to get the current position of the loop
 
 
+`propeller-vision` supports multiple views wich can be selected by a CLI flag at start up.
+The default view is the Dashboard.

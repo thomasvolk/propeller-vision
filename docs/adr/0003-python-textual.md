@@ -1,0 +1,3 @@
+# Python + textual for the TUI
+
+propeller-vision needs a live-redrawing terminal dashboard driven by polling a Unix domain socket. We chose Python with the `textual` framework over alternatives like Go+bubbletea or Node+blessed/ink. Python's stdlib has first-class Unix-domain-socket support, and `textual` is well-suited to a dashboard with widgets refreshed on independent timers (position at 10Hz, status/project at 1Hz), with no compile step to slow down iteration on a small tool. Packaging is managed with `uv` and `pyproject.toml`, exposing a `propeller-vision` console-script entry point, targeting Python 3.11+.

@@ -1,0 +1,3 @@
+# Shared polling layer for status/position; per-view fetch for track/note data
+
+With multiple views (Dashboard, Plasma), we decided on a shared, view-agnostic polling layer for `status` and `get_position` — both views need engine/position state, so there's one poller feeding whichever view is active. Track/note data (needed only by Plasma, to compute Active Notes) is fetched by the view itself rather than folded into the shared layer, keeping the core poller free of note-level concepts and consistent with the scope line drawn in ADR-0002/ADR-0004. Only one view runs per session (selected at startup), so there's no cost to a view fetching data the shared layer doesn't provide.
