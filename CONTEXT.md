@@ -31,7 +31,7 @@ One of the selectable ways propeller-vision renders Engine state: Dashboard or P
 The default View: a Position playhead plus a status panel (Mode, bpm, current/pending Project header).
 
 **Plasma View**:
-A View that reacts to played notes: each Active Note renders as a flash/pulse positioned by pitch, colored by Track, with intensity from velocity, decaying after note-off.
+A View rendering a continuously animated, full-screen flowing color field (independent of the poll cadence), which Active Notes perturb: each Active Note adds an outward-travelling ripple centered horizontally by pitch, colored by Track, with amplitude and color/brightness influence from velocity, decaying after note-off. With no Active Notes the field still flows, at a calm, dim baseline. The flow only animates while the Engine's `clock_state` is `running`; paused, stopped, or disconnected freezes it (resuming later continues the flow rather than jumping forward by the paused duration).
 
 **Active Note**:
 A note currently sounding, derived by cross-referencing a Track's note data with the current Position (i.e. the Position falls within the note's start/duration span). Computed by the Plasma View only; the shared polling layer has no notion of it.

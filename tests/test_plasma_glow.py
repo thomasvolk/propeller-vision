@@ -5,7 +5,6 @@ from propeller_vision.plasma import (
     ActiveNote,
     Glow,
     glow_intensity,
-    track_color,
     update_glow,
 )
 
@@ -80,29 +79,3 @@ def test_glow_intensity_never_goes_negative_past_full_decay() -> None:
     glow = Glow(track_index=0, pitch=60, peak_intensity=1.0, deactivated_at=10.0)
 
     assert glow_intensity(glow, now=10.0 + DECAY_SECONDS * 10) == 0.0
-
-
-def test_track_color_is_stable_for_the_same_track_index() -> None:
-    assert track_color(0, intensity=1.0) == track_color(0, intensity=1.0)
-
-
-def test_track_color_differs_across_tracks() -> None:
-    assert track_color(0, intensity=1.0) != track_color(1, intensity=1.0)
-    assert track_color(1, intensity=1.0) != track_color(2, intensity=1.0)
-
-
-def test_track_color_returns_rgb_bytes() -> None:
-    r, g, b = track_color(3, intensity=1.0)
-    for channel in (r, g, b):
-        assert 0 <= channel <= 255
-
-
-def test_track_color_dims_with_lower_intensity() -> None:
-    bright = track_color(0, intensity=1.0)
-    dim = track_color(0, intensity=0.2)
-
-    assert sum(dim) < sum(bright)
-
-
-def test_track_color_at_zero_intensity_is_black() -> None:
-    assert track_color(0, intensity=0.0) == (0, 0, 0)

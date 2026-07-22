@@ -1,8 +1,13 @@
-"""The Plasma View: reacts to played notes.
+"""The Plasma View: a continuously flowing field that Active Notes perturb.
 
 Active Notes are derived by cross-referencing each Track's note data
 against the current Position -- computed here, not in the shared Poller
 (ADR-0004/ADR-0005 draw that boundary at the view, not the data layer).
+
+Rendering is decoupled from the poll cadence: `update_from` (called on
+each poll tick) only updates which notes are sounding (`_glows`); a
+separate per-frame timer redraws the field on its own clock, so the flow
+stays smooth regardless of how often the Engine is polled.
 """
 
 from __future__ import annotations
@@ -10,9 +15,10 @@ from __future__ import annotations
 import asyncio
 import colorsys
 import logging
+import math
 import time
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Iterable
 
 from rich.style import Style
 from rich.text import Text
@@ -28,15 +34,32 @@ logger = logging.getLogger(__name__)
 # Track's fixed note list -- stable across polls of the same Project.
 NoteKey = tuple[int, int, int]
 
-# How long a flash keeps fading after the note stops sounding.
+# How long a ripple keeps fading after the note stops sounding.
 DECAY_SECONDS = 0.1
 
 # Golden-angle hue step: gives evenly spread, distinguishable per-Track hues
 # regardless of how many Tracks a Project has.
 _HUE_STEP = 0.618033988749895
 
-# MIDI pitches run 0-127; one spatial column per pitch.
+# MIDI pitches run 0-127; used to place each note's ripple horizontally.
 PITCH_RANGE = 128
+
+# Animation frame cadence -- deliberately decoupled from the poll interval
+# so the flow reads as smooth motion, not a series of poll-driven jumps.
+FRAME_INTERVAL = 1 / 20
+
+# Idle (no nearby note) HSV: a calm, dim baseline that notes brighten out of.
+IDLE_SATURATION = 0.5
+IDLE_VALUE = 0.4
+
+# How tightly a ripple's rings are spaced, and how fast they travel outward.
+RIPPLE_SPREAD = 6.0
+RIPPLE_SPEED = 6.0
+
+# How far (in cells) a ripple's color/brightness influence reaches before
+# fading to nothing -- keeps a note's presence spatially legible rather than
+# tinting the whole screen.
+RIPPLE_REACH = 16.0
 
 
 @dataclass(frozen=True)
@@ -116,21 +139,125 @@ def glow_intensity(glow: Glow, now: float) -> float:
     return glow.peak_intensity * fraction_remaining
 
 
-def track_color(track_index: int, intensity: float) -> tuple[int, int, int]:
-    hue = (track_index * _HUE_STEP) % 1.0
-    r, g, b = colorsys.hsv_to_rgb(hue, 1.0, max(0.0, min(1.0, intensity)))
-    return (round(r * 255), round(g * 255), round(b * 255))
+_NOT_RUNNING_CLOCK_STATES = {"paused", "stopped"}
 
 
-def render_plasma_row(glows: dict[NoteKey, Glow], now: float) -> list[tuple[int, int, int] | None]:
-    row: list[tuple[int, int, int] | None] = [None] * PITCH_RANGE
-    for glow in glows.values():
+def clock_is_running(status: JsonDict | None) -> bool:
+    """Whether the Engine's transport is actively advancing -- the flow
+    freezes only on an explicit paused/stopped `clock_state`. Missing status
+    (or a status without `clock_state`) defaults to running, since that's an
+    incomplete read rather than a confirmed pause."""
+    if status is None:
+        return True
+    return status.get("clock_state") not in _NOT_RUNNING_CLOCK_STATES
+
+
+@dataclass(frozen=True)
+class PlasmaClock:
+    running: bool
+    paused_since: float | None
+    paused_total: float
+
+
+def update_plasma_clock(previous: PlasmaClock, running: bool, now: float) -> PlasmaClock:
+    """Tracks accumulated paused time so the flow resumes from where it left
+    off instead of jumping forward by however long the Engine was paused."""
+    if running and not previous.running and previous.paused_since is not None:
+        return PlasmaClock(
+            running=True,
+            paused_since=None,
+            paused_total=previous.paused_total + (now - previous.paused_since),
+        )
+    if not running and previous.running:
+        return PlasmaClock(running=False, paused_since=now, paused_total=previous.paused_total)
+    return PlasmaClock(running=running, paused_since=previous.paused_since, paused_total=previous.paused_total)
+
+
+def track_hue(track_index: int) -> float:
+    return (track_index * _HUE_STEP) % 1.0
+
+
+def base_field_value(x: float, y: float, t: float) -> float:
+    """The calm, note-independent flow -- same sine-sum shape as the ascii_plasma.py demo."""
+    return (
+        math.sin(x / 8.0 + t)
+        + math.sin(y / 4.0 + t)
+        + math.sin((x + y) / 8.0 + t)
+        + math.sin(math.sqrt(x * x + y * y) / 4.0 + t)
+    )
+
+
+def pitch_source(pitch: int, cols: int, lines: int) -> tuple[float, float]:
+    """Where a note's ripple originates: horizontal position by pitch, fixed mid-row."""
+    x_center = (pitch / (PITCH_RANGE - 1)) * max(cols - 1, 0)
+    y_center = lines / 2.0
+    return x_center, y_center
+
+
+def ripple_distance(pitch: int, x: float, y: float, cols: int, lines: int) -> float:
+    x_center, y_center = pitch_source(pitch, cols, lines)
+    return math.hypot(x - x_center, y - y_center)
+
+
+def ripple_wave(pitch: int, x: float, y: float, cols: int, lines: int, t: float, intensity: float) -> float:
+    """Outward-travelling rings from a note's pitch-position, added into the flow field."""
+    distance = ripple_distance(pitch, x, y, cols, lines)
+    return intensity * math.sin(distance / RIPPLE_SPREAD - t * RIPPLE_SPEED)
+
+
+def ripple_weight(pitch: int, x: float, y: float, cols: int, lines: int, intensity: float) -> float:
+    """How strongly a note's Track color/brightness should show at this cell."""
+    distance = ripple_distance(pitch, x, y, cols, lines)
+    falloff = max(0.0, 1.0 - distance / RIPPLE_REACH)
+    return intensity * falloff
+
+
+def blend_hue(base_hue: float, target_hue: float, weight: float) -> float:
+    """Blend toward target_hue by the shortest path around the hue circle."""
+    weight = max(0.0, min(1.0, weight))
+    diff = (target_hue - base_hue + 0.5) % 1.0 - 0.5
+    return (base_hue + diff * weight) % 1.0
+
+
+def pixel_hsv(base_hue: float, best_track_hue: float, weight: float) -> tuple[float, float, float]:
+    weight = max(0.0, min(1.0, weight))
+    hue = blend_hue(base_hue % 1.0, best_track_hue, weight)
+    saturation = IDLE_SATURATION + (1.0 - IDLE_SATURATION) * weight
+    value = IDLE_VALUE + (1.0 - IDLE_VALUE) * weight
+    return hue, saturation, value
+
+
+def render_pixel(
+    x: int, y: int, cols: int, lines: int, t: float, glows: Iterable[Glow], now: float
+) -> tuple[int, int, int]:
+    v = base_field_value(x, y, t)
+    best_weight = 0.0
+    best_hue = 0.0
+    for glow in glows:
         intensity = glow_intensity(glow, now)
         if intensity <= 0:
             continue
-        if 0 <= glow.pitch < PITCH_RANGE:
-            row[glow.pitch] = track_color(glow.track_index, intensity)
-    return row
+        v += ripple_wave(glow.pitch, x, y, cols, lines, t, intensity)
+        weight = ripple_weight(glow.pitch, x, y, cols, lines, intensity)
+        if weight > best_weight:
+            best_weight = weight
+            best_hue = track_hue(glow.track_index)
+    base_hue = (v + 4) / 8.0
+    hue, saturation, value = pixel_hsv(base_hue, best_hue, best_weight)
+    r, g, b = colorsys.hsv_to_rgb(hue, saturation, value)
+    return (round(r * 255), round(g * 255), round(b * 255))
+
+
+def render_plasma_frame(cols: int, lines: int, t: float, glows: dict[NoteKey, Glow], now: float) -> Text:
+    glow_list = list(glows.values())
+    text = Text()
+    for y in range(lines):
+        for x in range(cols):
+            r, g, b = render_pixel(x, y, cols, lines, t, glow_list, now)
+            text.append(" ", style=Style(bgcolor=f"rgb({r},{g},{b})"))
+        if y < lines - 1:
+            text.append("\n")
+    return text
 
 
 class ProjectPoller:
@@ -174,28 +301,50 @@ class ProjectPoller:
         await run_resilient_poll(client.project, self.interval, on_success, on_failure)
 
 
-def _row_to_text(row: list[tuple[int, int, int] | None]) -> Text:
-    text = Text()
-    for cell in row:
-        if cell is None:
-            text.append(" ")
-        else:
-            r, g, b = cell
-            text.append("█", style=Style(color=f"rgb({r},{g},{b})"))
-    return text
-
-
 class PlasmaView(Static):
+    DEFAULT_CSS = """
+    PlasmaView {
+        width: 100%;
+        height: 100%;
+    }
+    """
+
     def __init__(self) -> None:
         super().__init__(WAITING_FOR_ENGINE_MESSAGE)
         self._glows: dict[NoteKey, Glow] = {}
+        self._connected = False
+        self._clock = PlasmaClock(running=False, paused_since=None, paused_total=0.0)
+        self._start_time = time.monotonic()
+        self._has_rendered_frame = False
+
+    def on_mount(self) -> None:
+        self.set_interval(FRAME_INTERVAL, self._draw_frame)
 
     def update_from(self, poller: Poller, project_poller: ProjectPoller) -> None:
         if not poller.connected or not project_poller.connected:
+            self._connected = False
             self._glows = {}
-            self.update(WAITING_FOR_ENGINE_MESSAGE)
             return
+        self._connected = True
         now = time.monotonic()
+        self._clock = update_plasma_clock(self._clock, clock_is_running(poller.status), now)
         active = active_notes(project_poller.project, poller.position)
         self._glows = update_glow(self._glows, active, now)
-        self.update(_row_to_text(render_plasma_row(self._glows, now)))
+
+    def _draw_frame(self) -> None:
+        if not self._connected:
+            self.update(WAITING_FOR_ENGINE_MESSAGE, layout=False)
+            self._has_rendered_frame = False
+            return
+        # Freeze once at least one real frame is on screen; a fresh connection
+        # that's paused from the start still needs its first frame drawn.
+        if not self._clock.running and self._has_rendered_frame:
+            return
+        cols, lines = self.size.width, self.size.height
+        if cols <= 0 or lines <= 0:
+            return
+        now = time.monotonic()
+        t = now - self._start_time - self._clock.paused_total
+        frame = render_plasma_frame(cols, lines, t, self._glows, now)
+        self.update(frame, layout=False)
+        self._has_rendered_frame = True
