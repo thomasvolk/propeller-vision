@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from textual.app import App, ComposeResult
+from textual.binding import Binding
 from textual.css.query import NoMatches
 
 from propeller_vision.dashboard import Dashboard
@@ -11,6 +12,14 @@ from propeller_vision.poller import Poller
 
 
 class PropellerVisionApp(App[None]):
+    BINDINGS = [
+        Binding("ctrl+q", "noop", show=False, system=True, priority=True),
+        Binding("ctrl+c", "quit", "Quit", show=False, priority=True),
+    ]
+
+    def action_noop(self) -> None:
+        pass
+
     def __init__(
         self,
         poller: Poller,
