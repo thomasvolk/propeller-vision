@@ -2,7 +2,7 @@
 
 A read-only console monitor that observes a running `propeller-engine` process and visualizes the state of its playback Loop. It connects to the engine over its Unix domain socket protocol and only ever issues query commands (`status`, `project`, `get_position`) — it never sends control/mutation commands, so it can't conflict with or corrupt engine state. It offers two Views: a **Dashboard** (a Position playhead plus a status panel) and a **Plasma View** (a continuously animated, note-reactive color field).
 
-!(plasma)[plasma.png]
+![plasma](plasma.png)
 
 ## Dependencies
 
