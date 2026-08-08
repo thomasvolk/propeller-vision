@@ -6,6 +6,7 @@ readme = "README.md"
 authors = [
     { name = "Thomas Volk (MacBook)", email = "info@thomasvolk.de" }
 ]
+license = "Apache-2.0"
 requires-python = ">=3.11"
 dependencies = [
     "textual>=8.2.8",
