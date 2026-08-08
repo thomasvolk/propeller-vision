@@ -7,10 +7,10 @@ from propeller_vision.plasma import (
     IDLE_VALUE,
     RIPPLE_REACH,
     Glow,
-    PlasmaClock,
     base_field_value,
     blend_hue,
     clock_is_running,
+    music_rate,
     pitch_source,
     pixel_hsv,
     render_pixel,
@@ -19,7 +19,6 @@ from propeller_vision.plasma import (
     ripple_wave,
     ripple_weight,
     track_hue,
-    update_plasma_clock,
 )
 
 
@@ -164,33 +163,21 @@ def test_clock_is_running_defaults_true_when_status_is_none() -> None:
     assert clock_is_running(None) is True
 
 
-def test_update_plasma_clock_stays_running_while_running() -> None:
-    clock = PlasmaClock(running=True, paused_since=None, paused_total=0.0)
-
-    result = update_plasma_clock(clock, running=True, now=10.0)
-
-    assert result == PlasmaClock(running=True, paused_since=None, paused_total=0.0)
+def test_music_rate_is_beats_per_second() -> None:
+    assert music_rate(120) == pytest.approx(2.0)
+    assert music_rate(60) == pytest.approx(1.0)
 
 
-def test_update_plasma_clock_records_when_a_pause_begins() -> None:
-    clock = PlasmaClock(running=True, paused_since=None, paused_total=0.0)
-
-    result = update_plasma_clock(clock, running=False, now=10.0)
-
-    assert result == PlasmaClock(running=False, paused_since=10.0, paused_total=0.0)
+def test_music_rate_scales_directly_with_bpm() -> None:
+    rate_at_90 = music_rate(90)
+    assert rate_at_90 is not None
+    assert music_rate(180) == pytest.approx(rate_at_90 * 2)
 
 
-def test_update_plasma_clock_accumulates_paused_time_on_resume() -> None:
-    clock = PlasmaClock(running=False, paused_since=10.0, paused_total=0.0)
-
-    result = update_plasma_clock(clock, running=True, now=13.5)
-
-    assert result == PlasmaClock(running=True, paused_since=None, paused_total=3.5)
+def test_music_rate_is_none_when_bpm_is_missing() -> None:
+    assert music_rate(None) is None
 
 
-def test_update_plasma_clock_keeps_accumulating_across_multiple_pauses() -> None:
-    clock = PlasmaClock(running=False, paused_since=20.0, paused_total=3.5)
-
-    result = update_plasma_clock(clock, running=True, now=21.0)
-
-    assert result == PlasmaClock(running=True, paused_since=None, paused_total=4.5)
+def test_music_rate_is_none_when_bpm_is_not_positive() -> None:
+    assert music_rate(0) is None
+    assert music_rate(-10) is None

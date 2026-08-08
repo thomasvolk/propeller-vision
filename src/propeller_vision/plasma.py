@@ -152,25 +152,14 @@ def clock_is_running(status: JsonDict | None) -> bool:
     return status.get("clock_state") not in _NOT_RUNNING_CLOCK_STATES
 
 
-@dataclass(frozen=True)
-class PlasmaClock:
-    running: bool
-    paused_since: float | None
-    paused_total: float
-
-
-def update_plasma_clock(previous: PlasmaClock, running: bool, now: float) -> PlasmaClock:
-    """Tracks accumulated paused time so the flow resumes from where it left
-    off instead of jumping forward by however long the Engine was paused."""
-    if running and not previous.running and previous.paused_since is not None:
-        return PlasmaClock(
-            running=True,
-            paused_since=None,
-            paused_total=previous.paused_total + (now - previous.paused_since),
-        )
-    if not running and previous.running:
-        return PlasmaClock(running=False, paused_since=now, paused_total=previous.paused_total)
-    return PlasmaClock(running=running, paused_since=previous.paused_since, paused_total=previous.paused_total)
+def music_rate(bpm: float | None) -> float | None:
+    """Converts BPM into beats-per-second -- the rate `t` advances at, so the
+    base flow's speed is directly proportional to tempo (a 120 BPM track
+    flows twice as fast as a 60 BPM one). None (missing/non-positive BPM)
+    means the rate is unknown, and the flow should freeze rather than guess."""
+    if bpm is None or bpm <= 0:
+        return None
+    return bpm / 60.0
 
 
 def track_hue(track_index: int) -> float:
@@ -313,8 +302,10 @@ class PlasmaView(Static):
         super().__init__(WAITING_FOR_ENGINE_MESSAGE)
         self._glows: dict[NoteKey, Glow] = {}
         self._connected = False
-        self._clock = PlasmaClock(running=False, paused_since=None, paused_total=0.0)
-        self._start_time = time.monotonic()
+        self._running = False
+        self._bpm: float | None = None
+        self._music_time = 0.0
+        self._last_tick_at: float | None = None
         self._has_rendered_frame = False
 
     def on_mount(self) -> None:
@@ -327,24 +318,36 @@ class PlasmaView(Static):
             return
         self._connected = True
         now = time.monotonic()
-        self._clock = update_plasma_clock(self._clock, clock_is_running(poller.status), now)
+        self._running = clock_is_running(poller.status)
+        self._bpm = poller.status.get("bpm") if poller.status else None
         active = active_notes(project_poller.project, poller.position)
         self._glows = update_glow(self._glows, active, now)
 
+    def _advance_music_time(self, now: float) -> None:
+        # Reset the tick reference on every call so a pause never counts
+        # toward the next dt -- resuming continues from where it froze
+        # instead of jumping forward by however long it was paused.
+        if self._running:
+            rate = music_rate(self._bpm)
+            if rate is not None and self._last_tick_at is not None:
+                self._music_time += (now - self._last_tick_at) * rate
+        self._last_tick_at = now
+
     def _draw_frame(self) -> None:
+        now = time.monotonic()
         if not self._connected:
             self.update(WAITING_FOR_ENGINE_MESSAGE, layout=False)
             self._has_rendered_frame = False
+            self._last_tick_at = None
             return
+        self._advance_music_time(now)
         # Freeze once at least one real frame is on screen; a fresh connection
         # that's paused from the start still needs its first frame drawn.
-        if not self._clock.running and self._has_rendered_frame:
+        if not self._running and self._has_rendered_frame:
             return
         cols, lines = self.size.width, self.size.height
         if cols <= 0 or lines <= 0:
             return
-        now = time.monotonic()
-        t = now - self._start_time - self._clock.paused_total
-        frame = render_plasma_frame(cols, lines, t, self._glows, now)
+        frame = render_plasma_frame(cols, lines, self._music_time, self._glows, now)
         self.update(frame, layout=False)
         self._has_rendered_frame = True

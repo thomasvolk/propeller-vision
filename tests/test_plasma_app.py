@@ -107,6 +107,43 @@ async def test_plasma_view_freezes_while_the_engine_is_paused(fake_engine: FakeE
         assert first_colors == second_colors
 
 
+async def test_plasma_view_flow_advances_while_playing(fake_engine: FakeEngine) -> None:
+    fake_engine.set_response(
+        "project",
+        {
+            "current": {
+                "header": {"bpm": 120, "loop_duration": 960},
+                "tracks": [],
+            }
+        },
+    )
+    fake_engine.set_response("get_position", {"type": "position", "tick": 100, "loop_duration": 960})
+    fake_engine.set_response("status", {"status": "ok", "mode": "standalone", "bpm": 120, "clock_state": "running"})
+
+    app, poller, project_poller = _build_app(fake_engine)
+
+    async with app.run_test() as pilot:
+        await wait_until(lambda: poller.connected and project_poller.connected)
+        await asyncio.sleep(FRAME_INTERVAL * 2)
+        await pilot.pause()
+
+        view = app.query_one(PlasmaView)
+        sample_offsets = list(range(min(view.size.width, 5)))
+
+        first = view.render()
+        assert isinstance(first, Content)
+        first_colors = [_bg_color_at(first, i) for i in sample_offsets]
+
+        await asyncio.sleep(FRAME_INTERVAL * 10)
+        await pilot.pause()
+
+        second = view.render()
+        assert isinstance(second, Content)
+        second_colors = [_bg_color_at(second, i) for i in sample_offsets]
+
+        assert first_colors != second_colors
+
+
 async def test_plasma_view_shows_disconnected_indicator_when_engine_never_started(
     short_tmp_path: Path,
 ) -> None:
