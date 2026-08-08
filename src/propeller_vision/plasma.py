@@ -298,8 +298,9 @@ class PlasmaView(Static):
     }
     """
 
-    def __init__(self) -> None:
+    def __init__(self, flow_speed: float = 1.0) -> None:
         super().__init__(WAITING_FOR_ENGINE_MESSAGE)
+        self._flow_speed = flow_speed
         self._glows: dict[NoteKey, Glow] = {}
         self._connected = False
         self._running = False
@@ -330,7 +331,7 @@ class PlasmaView(Static):
         if self._running:
             rate = music_rate(self._bpm)
             if rate is not None and self._last_tick_at is not None:
-                self._music_time += (now - self._last_tick_at) * rate
+                self._music_time += (now - self._last_tick_at) * rate * self._flow_speed
         self._last_tick_at = now
 
     def _draw_frame(self) -> None:

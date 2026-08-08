@@ -7,6 +7,7 @@ from propeller_vision.plasma import (
     IDLE_VALUE,
     RIPPLE_REACH,
     Glow,
+    PlasmaView,
     base_field_value,
     blend_hue,
     clock_is_running,
@@ -181,3 +182,29 @@ def test_music_rate_is_none_when_bpm_is_missing() -> None:
 def test_music_rate_is_none_when_bpm_is_not_positive() -> None:
     assert music_rate(0) is None
     assert music_rate(-10) is None
+
+
+def test_flow_speed_defaults_to_the_bare_bpm_rate() -> None:
+    rate = music_rate(120)
+    assert rate is not None
+    view = PlasmaView()
+    view._running = True
+    view._bpm = 120
+
+    view._advance_music_time(0.0)
+    view._advance_music_time(1.0)
+
+    assert view._music_time == pytest.approx(rate)
+
+
+def test_flow_speed_scales_the_bpm_rate() -> None:
+    rate = music_rate(120)
+    assert rate is not None
+    view = PlasmaView(flow_speed=0.5)
+    view._running = True
+    view._bpm = 120
+
+    view._advance_music_time(0.0)
+    view._advance_music_time(1.0)
+
+    assert view._music_time == pytest.approx(rate * 0.5)

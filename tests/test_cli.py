@@ -68,6 +68,18 @@ def test_status_interval_is_overridable() -> None:
     assert args.status_interval == pytest.approx(2.5)
 
 
+def test_flow_speed_defaults_to_half() -> None:
+    args = parse_args([])
+
+    assert args.flow_speed == pytest.approx(0.5)
+
+
+def test_flow_speed_is_overridable() -> None:
+    args = parse_args(["--flow-speed", "1.0"])
+
+    assert args.flow_speed == pytest.approx(1.0)
+
+
 def test_debug_defaults_to_false() -> None:
     args = parse_args([])
 

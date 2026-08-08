@@ -47,6 +47,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help="Status/project poll interval in seconds (default: 1.0)",
     )
     parser.add_argument(
+        "--flow-speed",
+        type=float,
+        default=0.5,
+        help="Plasma view background flow speed, as a multiplier of the BPM-derived rate (default: 0.5)",
+    )
+    parser.add_argument(
         "--debug",
         action="store_true",
         help=f"Enable file logging for troubleshooting (writes to {DEFAULT_LOG_PATH})",
@@ -97,5 +103,7 @@ def main() -> None:
             client_factory=lambda: EngineClient(args.socket),
             interval=args.status_interval,
         )
-    app = PropellerVisionApp(poller, view=args.view, project_poller=project_poller)
+    app = PropellerVisionApp(
+        poller, view=args.view, project_poller=project_poller, flow_speed=args.flow_speed
+    )
     app.run()

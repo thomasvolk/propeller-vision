@@ -25,6 +25,7 @@ class PropellerVisionApp(App[None]):
         poller: Poller,
         view: str = "dashboard",
         project_poller: ProjectPoller | None = None,
+        flow_speed: float = 1.0,
     ) -> None:
         if view == "plasma" and project_poller is None:
             raise ValueError("view='plasma' requires a project_poller")
@@ -32,10 +33,11 @@ class PropellerVisionApp(App[None]):
         self.poller = poller
         self.view = view
         self.project_poller = project_poller
+        self.flow_speed = flow_speed
 
     def compose(self) -> ComposeResult:
         if self.view == "plasma":
-            yield PlasmaView()
+            yield PlasmaView(flow_speed=self.flow_speed)
         else:
             yield Dashboard()
 
