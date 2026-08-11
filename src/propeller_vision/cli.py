@@ -30,7 +30,7 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--view",
-        choices=["dashboard", "plasma"],
+        choices=["dashboard", "plasma", "space"],
         default="dashboard",
         help="Which View to render (default: dashboard)",
     )
@@ -51,6 +51,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         type=float,
         default=0.5,
         help="Plasma view background flow speed, as a multiplier of the BPM-derived rate (default: 0.5)",
+    )
+    parser.add_argument(
+        "--scroll-speed",
+        type=float,
+        default=1.0,
+        help="Space view scroll speed, as a multiplier of the BPM-derived rate (default: 1.0)",
     )
     parser.add_argument(
         "--debug",
@@ -98,12 +104,16 @@ def main() -> None:
         status_interval=args.status_interval,
     )
     project_poller = None
-    if args.view == "plasma":
+    if args.view in ("plasma", "space"):
         project_poller = ProjectPoller(
             client_factory=lambda: EngineClient(args.socket),
             interval=args.status_interval,
         )
     app = PropellerVisionApp(
-        poller, view=args.view, project_poller=project_poller, flow_speed=args.flow_speed
+        poller,
+        view=args.view,
+        project_poller=project_poller,
+        flow_speed=args.flow_speed,
+        scroll_speed=args.scroll_speed,
     )
     app.run()

@@ -39,6 +39,12 @@ def test_view_accepts_plasma() -> None:
     assert args.view == "plasma"
 
 
+def test_view_accepts_space() -> None:
+    args = parse_args(["--view", "space"])
+
+    assert args.view == "space"
+
+
 def test_view_rejects_unknown_value() -> None:
     with pytest.raises(SystemExit):
         parse_args(["--view", "not-a-real-view"])
@@ -78,6 +84,18 @@ def test_flow_speed_is_overridable() -> None:
     args = parse_args(["--flow-speed", "1.0"])
 
     assert args.flow_speed == pytest.approx(1.0)
+
+
+def test_scroll_speed_defaults_to_one() -> None:
+    args = parse_args([])
+
+    assert args.scroll_speed == pytest.approx(1.0)
+
+
+def test_scroll_speed_is_overridable() -> None:
+    args = parse_args(["--scroll-speed", "2.0"])
+
+    assert args.scroll_speed == pytest.approx(2.0)
 
 
 def test_debug_defaults_to_false() -> None:

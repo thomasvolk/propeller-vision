@@ -9,6 +9,10 @@ from textual.css.query import NoMatches
 from propeller_vision.dashboard import Dashboard
 from propeller_vision.plasma import PlasmaView, ProjectPoller
 from propeller_vision.poller import Poller
+from propeller_vision.space import SpaceView
+
+# Views that derive Active Notes from Track/note data need their own project poll.
+_VIEWS_REQUIRING_PROJECT_POLLER = {"plasma", "space"}
 
 
 class PropellerVisionApp(App[None]):
@@ -26,18 +30,22 @@ class PropellerVisionApp(App[None]):
         view: str = "dashboard",
         project_poller: ProjectPoller | None = None,
         flow_speed: float = 1.0,
+        scroll_speed: float = 1.0,
     ) -> None:
-        if view == "plasma" and project_poller is None:
-            raise ValueError("view='plasma' requires a project_poller")
+        if view in _VIEWS_REQUIRING_PROJECT_POLLER and project_poller is None:
+            raise ValueError(f"view={view!r} requires a project_poller")
         super().__init__()
         self.poller = poller
         self.view = view
         self.project_poller = project_poller
         self.flow_speed = flow_speed
+        self.scroll_speed = scroll_speed
 
     def compose(self) -> ComposeResult:
         if self.view == "plasma":
             yield PlasmaView(flow_speed=self.flow_speed)
+        elif self.view == "space":
+            yield SpaceView(scroll_speed=self.scroll_speed)
         else:
             yield Dashboard()
 
@@ -52,6 +60,9 @@ class PropellerVisionApp(App[None]):
             if self.view == "plasma":
                 assert self.project_poller is not None
                 self.query_one(PlasmaView).update_from(self.poller, self.project_poller)
+            elif self.view == "space":
+                assert self.project_poller is not None
+                self.query_one(SpaceView).update_from(self.poller, self.project_poller)
             else:
                 self.query_one(Dashboard).update_from(self.poller)
         except NoMatches:
