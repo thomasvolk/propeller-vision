@@ -97,11 +97,11 @@ async def test_space_view_ship_returns_to_center_with_no_active_notes(fake_engin
 
         view = app.query_one(SpaceView)
         rows = str(view.render()).split("\n")
-        ship_row = rows[-1]
         expected_col = view.size.width // 2
 
-        assert ship_row[expected_col] == "■"
-        assert rows[-2][expected_col] == "▲"
+        assert rows[-1][expected_col] == "■"
+        assert rows[-2][expected_col] == "■"
+        assert rows[-3][expected_col] == "▲"
 
 
 async def test_space_view_shows_disconnected_indicator_when_engine_never_started(
