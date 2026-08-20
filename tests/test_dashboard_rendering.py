@@ -6,11 +6,11 @@ def test_playhead_shows_waiting_message_before_first_poll() -> None:
 
 
 def test_playhead_shows_no_project_message_when_loop_duration_is_null() -> None:
-    assert format_playhead({"type": "position", "tick": None, "loop_duration": None}) == "No project loaded"
+    assert format_playhead({"tick": None, "loop_duration": None}) == "No project loaded"
 
 
 def test_playhead_renders_bar_scaled_to_loop_duration() -> None:
-    text = format_playhead({"type": "position", "tick": 480, "loop_duration": 960})
+    text = format_playhead({"tick": 480, "loop_duration": 960})
     assert "480/960" in text
     assert text.count("#") == 20
     assert text.count(".") == 20
@@ -59,3 +59,16 @@ def test_status_panel_reports_no_project_when_absent() -> None:
     text = format_status_panel(status, {})
     assert "current=no" in text
     assert "pending=no" in text
+
+
+def test_status_panel_omits_loop_count_when_position_is_none() -> None:
+    status = {"status": "ok", "mode": "standalone", "bpm": 120, "clock_state": "stopped"}
+    text = format_status_panel(status, None)
+    assert "Loop:" not in text
+
+
+def test_status_panel_shows_loop_count_from_position() -> None:
+    status = {"status": "ok", "mode": "standalone", "bpm": 120, "clock_state": "stopped"}
+    position = {"tick": 10, "loop_duration": 960, "loop_count": 3}
+    text = format_status_panel(status, None, position)
+    assert "Loop: 3" in text

@@ -28,7 +28,10 @@ The Engine's operating mode: `standalone`, `clock`, or `sync`. Affects what stat
 One of the selectable ways propeller-vision renders Engine state: Dashboard, Plasma, or Space. Chosen via a CLI flag at startup; fixed for the session (no runtime switching).
 
 **Dashboard**:
-The default View: a Position playhead plus a status panel (Mode, bpm, current/pending Project header).
+The default View: a Position playhead plus a status panel (Mode, bpm, current/pending Project header, Loop Count).
+
+**Loop Count**:
+The number of completed passes through the current Loop, as reported by the Engine's `get_position` query. Starts at 0, increments on each loop completion, and resets to 0 on stop/clock-stop or an incoming MIDI Start in sync mode; unaffected by pause/resume. Rendered in the dashboard's status panel.
 
 **Plasma View**:
 A View rendering a continuously animated, full-screen flowing color field (independent of the poll cadence), which Active Notes perturb: each Active Note adds an outward-travelling ripple centered horizontally by pitch, colored by Track, with amplitude and color/brightness influence from velocity, decaying after note-off. With no Active Notes the field still flows, at a calm, dim baseline. The flow only animates while the Engine's `clock_state` is `running`; paused, stopped, or disconnected freezes it (resuming later continues the flow rather than jumping forward by the paused duration).

@@ -27,7 +27,9 @@ def format_playhead(position: JsonDict | None) -> str:
     return f"[{bar}] {tick}/{duration}"
 
 
-def format_status_panel(status: JsonDict | None, project: JsonDict | None) -> str:
+def format_status_panel(
+    status: JsonDict | None, project: JsonDict | None, position: JsonDict | None = None
+) -> str:
     if status is None:
         return WAITING_FOR_ENGINE_MESSAGE
     lines = [
@@ -40,6 +42,9 @@ def format_status_panel(status: JsonDict | None, project: JsonDict | None) -> st
     current = bool(project and project.get("current"))
     pending = bool(project and project.get("pending"))
     lines.append(f"Project: current={'yes' if current else 'no'} pending={'yes' if pending else 'no'}")
+    loop_count = position.get("loop_count") if position else None
+    if loop_count is not None:
+        lines.append(f"Loop: {loop_count}")
     return "\n".join(lines)
 
 
@@ -50,4 +55,6 @@ class Dashboard(Vertical):
 
     def update_from(self, poller: Poller) -> None:
         self.query_one("#playhead", Static).update(format_playhead(poller.position))
-        self.query_one("#status-panel", Static).update(format_status_panel(poller.status, poller.project))
+        self.query_one("#status-panel", Static).update(
+            format_status_panel(poller.status, poller.project, poller.position)
+        )

@@ -32,7 +32,7 @@ def test_is_active_wraps_around_loop_boundary_outside_span() -> None:
 
 
 def test_active_notes_returns_empty_when_project_is_none() -> None:
-    position = {"type": "position", "tick": 10, "loop_duration": 960}
+    position = {"tick": 10, "loop_duration": 960}
     assert active_notes(None, position) == {}
 
 
@@ -43,13 +43,13 @@ def test_active_notes_returns_empty_when_position_is_none() -> None:
 
 def test_active_notes_returns_empty_when_no_current_project() -> None:
     project = {"pending": {"header": {"bpm": 120, "loop_duration": 960}, "tracks": []}}
-    position = {"type": "position", "tick": 10, "loop_duration": 960}
+    position = {"tick": 10, "loop_duration": 960}
     assert active_notes(project, position) == {}
 
 
 def test_active_notes_returns_empty_when_loop_duration_is_null() -> None:
     project = {"current": {"header": {"bpm": 120}, "tracks": []}}
-    position = {"type": "position", "tick": 10, "loop_duration": None}
+    position = {"tick": 10, "loop_duration": None}
     assert active_notes(project, position) == {}
 
 
@@ -62,7 +62,7 @@ def test_active_notes_finds_note_across_one_track() -> None:
             ],
         }
     }
-    position = {"type": "position", "tick": 120, "loop_duration": 960}
+    position = {"tick": 120, "loop_duration": 960}
 
     result = active_notes(project, position)
 
@@ -79,7 +79,7 @@ def test_active_notes_across_multiple_tracks_simultaneously() -> None:
             ],
         }
     }
-    position = {"type": "position", "tick": 100, "loop_duration": 960}
+    position = {"tick": 100, "loop_duration": 960}
 
     result = active_notes(project, position)
 
@@ -98,7 +98,7 @@ def test_active_notes_ignores_notes_not_currently_sounding() -> None:
             ],
         }
     }
-    position = {"type": "position", "tick": 10, "loop_duration": 960}
+    position = {"tick": 10, "loop_duration": 960}
 
     assert active_notes(project, position) == {}
 
@@ -112,9 +112,9 @@ def test_active_notes_handles_wraparound_note() -> None:
             ],
         }
     }
-    just_after_wrap = {"type": "position", "tick": 5, "loop_duration": 960}
-    just_before_wrap = {"type": "position", "tick": 950, "loop_duration": 960}
-    outside_span = {"type": "position", "tick": 500, "loop_duration": 960}
+    just_after_wrap = {"tick": 5, "loop_duration": 960}
+    just_before_wrap = {"tick": 950, "loop_duration": 960}
+    outside_span = {"tick": 500, "loop_duration": 960}
 
     assert active_notes(project, just_after_wrap) == {
         (0, 940, 48): ActiveNote(track_index=0, pitch=48, velocity=70)

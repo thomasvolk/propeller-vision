@@ -8,7 +8,7 @@ A read-only console monitor that observes a running `propeller-engine` process a
 
 - Python >= 3.11
 - [`textual`](https://pypi.org/project/textual/) >= 8.2.8
-- A running `propeller-engine` process (>= 0.7.0) reachable over its Unix domain socket
+- A running `propeller-engine` process (>= 0.8.0) reachable over its Unix domain socket
 
 ## Installation
 

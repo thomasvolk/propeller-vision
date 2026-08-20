@@ -47,7 +47,7 @@ async def test_plasma_view_renders_a_full_screen_flowing_field_once_connected(
             }
         },
     )
-    fake_engine.set_response("get-position", {"type": "position", "tick": 100, "loop_duration": 960})
+    fake_engine.set_response("get-position", {"tick": 100, "loop_duration": 960})
     fake_engine.set_response("status", {"status": "ok", "mode": "standalone", "bpm": 120})
 
     app, poller, project_poller = _build_app(fake_engine)
@@ -80,7 +80,7 @@ async def test_plasma_view_freezes_while_the_engine_is_paused(fake_engine: FakeE
             }
         },
     )
-    fake_engine.set_response("get-position", {"type": "position", "tick": 100, "loop_duration": 960})
+    fake_engine.set_response("get-position", {"tick": 100, "loop_duration": 960})
     fake_engine.set_response("status", {"status": "ok", "mode": "standalone", "bpm": 120, "clock_state": "paused"})
 
     app, poller, project_poller = _build_app(fake_engine)
@@ -117,7 +117,7 @@ async def test_plasma_view_flow_advances_while_playing(fake_engine: FakeEngine) 
             }
         },
     )
-    fake_engine.set_response("get-position", {"type": "position", "tick": 100, "loop_duration": 960})
+    fake_engine.set_response("get-position", {"tick": 100, "loop_duration": 960})
     fake_engine.set_response("status", {"status": "ok", "mode": "standalone", "bpm": 120, "clock_state": "running"})
 
     app, poller, project_poller = _build_app(fake_engine)

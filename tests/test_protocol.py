@@ -26,12 +26,12 @@ async def test_project_round_trips_through_the_socket(fake_engine: FakeEngine) -
 
 
 async def test_get_position_uses_command_field(fake_engine: FakeEngine) -> None:
-    fake_engine.set_response("get-position", {"type": "position", "tick": 42, "loop_duration": 960})
+    fake_engine.set_response("get-position", {"tick": 42, "loop_duration": 960, "loop_count": 3})
 
     client = EngineClient(str(fake_engine.socket_path))
     response = await client.get_position()
 
-    assert response == {"type": "position", "tick": 42, "loop_duration": 960}
+    assert response == {"tick": 42, "loop_duration": 960, "loop_count": 3}
 
 
 async def test_missing_socket_raises_engine_unavailable(short_tmp_path: Path) -> None:
