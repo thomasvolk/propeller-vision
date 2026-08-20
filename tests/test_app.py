@@ -35,7 +35,7 @@ def test_space_view_requires_a_project_poller() -> None:
 
 
 async def test_dashboard_renders_live_position_and_status_from_the_engine(fake_engine: FakeEngine) -> None:
-    fake_engine.set_response("get_position", {"type": "position", "tick": 480, "loop_duration": 960})
+    fake_engine.set_response("get-position", {"type": "position", "tick": 480, "loop_duration": 960})
     fake_engine.set_response(
         "status",
         {"status": "ok", "mode": "standalone", "bpm": 120, "clock_state": "running"},
@@ -65,7 +65,7 @@ async def test_dashboard_renders_live_position_and_status_from_the_engine(fake_e
 
 
 async def test_dashboard_shows_sync_clock_state_only_in_sync_mode(fake_engine: FakeEngine) -> None:
-    fake_engine.set_response("get_position", {"type": "position", "tick": 0, "loop_duration": 960})
+    fake_engine.set_response("get-position", {"type": "position", "tick": 0, "loop_duration": 960})
     fake_engine.set_response(
         "status",
         {
@@ -98,7 +98,7 @@ async def test_dashboard_shows_sync_clock_state_only_in_sync_mode(fake_engine: F
 async def test_dashboard_shows_disconnected_indicator_and_recovers_when_engine_restarts(
     fake_engine: FakeEngine,
 ) -> None:
-    fake_engine.set_response("get_position", {"type": "position", "tick": 100, "loop_duration": 960})
+    fake_engine.set_response("get-position", {"type": "position", "tick": 100, "loop_duration": 960})
     fake_engine.set_response("status", {"status": "ok", "mode": "standalone", "bpm": 120})
     fake_engine.set_response("project", {})
     socket_path = fake_engine.socket_path
@@ -124,7 +124,7 @@ async def test_dashboard_shows_disconnected_indicator_and_recovers_when_engine_r
         assert "Waiting for engine..." in str(dashboard.query_one("#status-panel", Static).render())
 
         await fake_engine.start(socket_path)
-        fake_engine.set_response("get_position", {"type": "position", "tick": 200, "loop_duration": 960})
+        fake_engine.set_response("get-position", {"type": "position", "tick": 200, "loop_duration": 960})
         fake_engine.set_response("status", {"status": "ok", "mode": "standalone", "bpm": 120})
         fake_engine.set_response("project", {})
         await wait_until(lambda: poller.connected is True)

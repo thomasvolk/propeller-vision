@@ -25,8 +25,8 @@ async def test_project_round_trips_through_the_socket(fake_engine: FakeEngine) -
     assert response == {"current": {"header": {"bpm": 100}}}
 
 
-async def test_get_position_uses_type_field_not_command(fake_engine: FakeEngine) -> None:
-    fake_engine.set_response("get_position", {"type": "position", "tick": 42, "loop_duration": 960})
+async def test_get_position_uses_command_field(fake_engine: FakeEngine) -> None:
+    fake_engine.set_response("get-position", {"type": "position", "tick": 42, "loop_duration": 960})
 
     client = EngineClient(str(fake_engine.socket_path))
     response = await client.get_position()

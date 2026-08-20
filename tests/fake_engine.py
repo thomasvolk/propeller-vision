@@ -1,5 +1,5 @@
 """A fake propeller-engine: a Unix-socket test server implementing the
-status/project/get_position protocol subset with configurable canned
+status/project/get-position protocol subset with configurable canned
 responses. Tests point propeller-vision at this instead of a real engine.
 """
 
@@ -21,7 +21,7 @@ class FakeEngine:
         self.socket_path: Path | None = None
 
     def set_response(self, key: str, response: JsonDict) -> None:
-        """key is 'status', 'project', or 'get_position'."""
+        """key is 'status', 'project', or 'get-position'."""
         self.responses[key] = response
 
     async def start(self, socket_path: Path) -> None:

@@ -30,7 +30,7 @@ class EngineClient:
         return await self._request({"command": "project"})
 
     async def get_position(self) -> JsonDict:
-        return await self._request({"type": "get_position"})
+        return await self._request({"command": "get-position"})
 
     async def _request(self, payload: JsonDict) -> JsonDict:
         writer: asyncio.StreamWriter | None = None
